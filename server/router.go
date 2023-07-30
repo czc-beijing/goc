@@ -1,4 +1,4 @@
-package router
+package server
 
 import (
 	"fmt"
@@ -15,15 +15,19 @@ type Router interface {
 	Routable
 }
 
+var _ Router = &HttpRouter{}
+
 type HttpRouter struct {
 	trees map[string]func(c *context.Context)
 }
 
-func New() *HttpRouter {
-	return &HttpRouter{}
+func NewRouter() *HttpRouter {
+	return &HttpRouter{
+		trees: map[string]func(c *context.Context){},
+	}
 }
 
-func (r *HttpRouter) Route(method string, pattern string, handler func(c *context.Context)) {
+func (r *HttpRouter) Router(method string, pattern string, handler func(c *context.Context)) {
 	r.trees[r.key(method, pattern)] = handler
 }
 
