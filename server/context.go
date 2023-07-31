@@ -1,4 +1,4 @@
-package context
+package server
 
 import (
 	"encoding/json"
@@ -7,18 +7,20 @@ import (
 )
 
 type Context struct {
-	w http.ResponseWriter
-	r *http.Request
+	W          http.ResponseWriter
+	R          *http.Request
+	PathParams map[string]string
 }
 
 func NewContext(w http.ResponseWriter, r *http.Request) *Context {
 	return &Context{
-		w: w,
-		r: r,
+		W:          w,
+		R:          r,
+		PathParams: map[string]string{},
 	}
 }
 func (c *Context) ReadJson(data interface{}) error {
-	body, err := io.ReadAll(c.r.Body)
+	body, err := io.ReadAll(c.R.Body)
 	if err != nil {
 		return err
 	}
@@ -30,11 +32,11 @@ func (c *Context) WriteJson(status int, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.w.Write(bs)
+	_, err = c.W.Write(bs)
 	if err != nil {
 		return err
 	}
-	c.w.WriteHeader(status)
+	c.W.WriteHeader(status)
 	return err
 }
 
@@ -48,4 +50,19 @@ func (c *Context) ErrorJson(data interface{}) error {
 
 func (c *Context) BadRequestJson(data interface{}) error {
 	return c.WriteJson(http.StatusBadRequest, data)
+}
+
+type HandleFunc func(c *Context)
+
+type matchInfo struct {
+	n          *node
+	pathParams map[string]string
+}
+
+func (m *matchInfo) addValue(key string, value string) {
+	if m.pathParams == nil {
+		// 大多数情况，参数路径只会有一段
+		m.pathParams = map[string]string{key: value}
+	}
+	m.pathParams[key] = value
 }

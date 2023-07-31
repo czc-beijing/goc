@@ -1,31 +1,54 @@
 package server
 
 import (
-	"fmt"
-	"goc/context"
 	"net/http"
 )
 
+type HandlerFunc func(c *Context)
+
+var _ Server = &HTTPServer{}
+
 type Server interface {
-	Routable
 	Start(address string) error
 }
 
-type HttpServer struct {
-	router Router
-}
-
-func New() *HttpServer {
-	return &HttpServer{
-		router: NewRouter(),
+func NewServer() *HTTPServer {
+	return &HTTPServer{
+		router: newRouter(),
 	}
 }
 
-func (hs *HttpServer) Router(method string, pattern string, handler func(c *context.Context)) {
-	hs.router.Router(method, pattern, handler)
+type HTTPServer struct {
+	router
 }
 
-func (hs *HttpServer) Start(address string) error {
-	fmt.Println(address, "run........")
-	return http.ListenAndServe(address, hs.router)
+func (hs *HTTPServer) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	ctx := &Context{
+		R: request,
+		W: writer,
+	}
+	hs.serve(ctx)
+}
+
+func (hs *HTTPServer) Post(path string, handler HandleFunc) {
+	hs.addRouter(http.MethodPost, path, handler)
+}
+
+func (hs *HTTPServer) Get(path string, handler HandleFunc) {
+	hs.addRouter(http.MethodGet, path, handler)
+}
+
+func (hs *HTTPServer) Start(address string) error {
+	return http.ListenAndServe(address, hs)
+}
+
+func (hs *HTTPServer) serve(ctx *Context) {
+	mi, ok := hs.findRoute(ctx.R.Method, ctx.R.URL.Path)
+	if !ok || mi.n == nil || mi.n.handler == nil {
+		ctx.W.WriteHeader(404)
+		ctx.W.Write([]byte("Not Found"))
+		return
+	}
+	ctx.PathParams = mi.pathParams
+	mi.n.handler(ctx)
 }
