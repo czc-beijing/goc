@@ -1,11 +1,13 @@
 package main
 
 import (
-	server2 "goc/server"
+	"goc/web"
 )
 
 func main() {
-	server := server2.NewServer()
-	server.Get("/hello", server2.Hello)
+	server := web.NewHTTPServer()
+	server.Get("/hello", func(ctx *web.Context) {
+		ctx.Resp.Write([]byte("hello, user"))
+	})
 	_ = server.Start(":8090")
 }
